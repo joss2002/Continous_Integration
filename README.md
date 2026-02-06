@@ -10,16 +10,19 @@
 <summary><span style="font-size:15px; font-weight:bold;">Run the server</span></summary>
 
 1. Clone the repository
+
 ```bash
 git clone https://github.com/joss2002/Continuous_Integration.git
 ```
 
 2. Build the project with Maven
+
 ```bash
 mvn clean compile
 ```
 
 3. Run the CI-server
+
 ```bash
 mvn exec:java
 ```
@@ -42,6 +45,7 @@ StatusCode        : 200
 StatusDescription : OK
 Content           : CI job done (placeholder)
 ```
+
 </details>
 
 **Option 2:** Open browser at `http://localhost:8080/`
@@ -55,7 +59,7 @@ CI job done (placeholder)
 
 </details>
 
-> Note: 8080 is tha default port number.
+> Note: 8080 is the default port number.
 
 </details>
 
