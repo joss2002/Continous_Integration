@@ -20,6 +20,15 @@ import se.ciserver.github.PushParser;
 import se.ciserver.github.InvalidPayloadException;
 
 /**
+ * Github commit statuses
+ */
+enum CommitStatus {
+    failure,
+    pending,
+    success,
+}
+
+/**
  * A Jetty-based CI-server that can start locally and receive HTTP-requests.
  */
 public class ContinuousIntegrationServer extends AbstractHandler
@@ -80,19 +89,40 @@ public class ContinuousIntegrationServer extends AbstractHandler
         }
     }
 
-    public static void setCommitStatus() {
+    public void setCommitStatus(String name,
+                                String repository,
+                                String commitSHA,
+                                String authToken,
+                                CommitStatus status,
+                                String description,
+                                String context
+    ) {
 
         try {
+
+            String statusString = "";
+
+            switch (status) {
+                case failure:
+                    statusString = "failure";
+                    break;
+                case pending:
+                    statusString = "pending";
+                    break;
+                case success:
+                    statusString = "success";
+                    break;
+            }
 
             SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
             HttpClient client = new HttpClient(sslContextFactory);
             client.start();
 
-            ContentResponse response = client.POST("https://api.github.com/repos/NAME/REPO/statuses/SHA")
+            ContentResponse response = client.POST("https://api.github.com/repos/"+name+"/"+repository+"/statuses/"+commitSHA)
                 .header("Accept", "application/vnd.github+json")
-                .header("Authorization", "Bearer GITHUB_AUTH_TOKEN")
+                .header("Authorization", "Bearer "+authToken)
                 .header("X-GitHub-Api-Version", "2022-11-28")
-                .content(new StringContentProvider("{\"state\":\"success\",\"description\":\"test 3!\",\"context\":\"ci_tester_auto\"}"), "application/json")
+                .content(new StringContentProvider("{\"state\":\""+statusString+"\",\"description\":\""+description+"\",\"context\":\""+context+"\"}"), "application/json")
                 .send();
 
             client.stop();
