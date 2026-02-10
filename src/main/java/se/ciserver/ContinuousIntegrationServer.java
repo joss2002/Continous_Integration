@@ -55,6 +55,19 @@ public class ContinuousIntegrationServer extends AbstractHandler
 
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println("Push received: " + push.after);
+
+                // RUN TESTS FOR THIS BRANCH
+                String testResult;
+                try {
+                    testResult = TestRunner.runTests(push.ref);
+                    response.getWriter().println(testResult);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    response.getWriter().println("Error running tests: " + e.getMessage());
+                }
+                response.setStatus(HttpServletResponse.SC_OK);
+
             }
             catch (InvalidPayloadException e)
             {
