@@ -138,9 +138,10 @@ public class ContinuousIntegrationServer extends AbstractHandler
                                 String description,
                                 String context)
     {
+        // only runs if an accessToken was provided
+        if (accessToken.equals("")) return;
         
         try {
-            // if push.repository.owner.name can be the full name filled into github this would fail, if its always the username then this works
             org.eclipse.jetty.client.api.Request request = httpClient.POST(url)
                 .header("Accept", "application/vnd.github+json")
                 .header("Authorization", "Bearer "+accessToken)
@@ -168,13 +169,13 @@ public class ContinuousIntegrationServer extends AbstractHandler
      */
     public static void main(String[] args) throws Exception
     {
-        if (args.length<1) {
-            System.out.println("Too few arguments, needs 1: github access token");
-            return;
+        String accessToken = "";
+        if (args.length>0) {
+            accessToken = args[0];
         }
 
         Server server = new Server(8080);
-        server.setHandler(new ContinuousIntegrationServer(args[0]));
+        server.setHandler(new ContinuousIntegrationServer(accessToken));
         server.start();
         server.join();
     }
