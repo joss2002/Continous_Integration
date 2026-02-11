@@ -21,7 +21,7 @@ import se.ciserver.github.InvalidPayloadException;
 public class ContinuousIntegrationServer extends AbstractHandler
 {
     private final PushParser parser = new PushParser();
-
+    public static boolean isIntegrationTest = false;
     /**
      * Handles incoming HTTP requests for the CI server and presents necessary information.
      *
@@ -55,6 +55,20 @@ public class ContinuousIntegrationServer extends AbstractHandler
 
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println("Push received: " + push.after);
+
+                // RUN TESTS FOR THIS BRANCH
+                if(!isIntegrationTest) {
+                    String testResult;
+                    try {
+                        testResult = TestRunner.runTests(push.ref);
+                        response.getWriter().println(testResult);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        response.getWriter().println("Error running tests: " + e.getMessage());
+                    }
+                    response.setStatus(HttpServletResponse.SC_OK);
+                }
             }
             catch (InvalidPayloadException e)
             {
