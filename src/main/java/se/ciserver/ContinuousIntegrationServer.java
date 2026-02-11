@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 
 import se.ciserver.github.Push;
 import se.ciserver.github.PushParser;
+import se.ciserver.github.Repository;
 import se.ciserver.github.InvalidPayloadException;
 
 /**
@@ -89,8 +90,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
         }
     }
 
-    public void setCommitStatus(String name,
-                                String repository,
+    public void setCommitStatus(Repository repository,
                                 String commitSHA,
                                 String authToken,
                                 CommitStatus status,
@@ -118,7 +118,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
             HttpClient client = new HttpClient(sslContextFactory);
             client.start();
 
-            ContentResponse response = client.POST("https://api.github.com/repos/"+name+"/"+repository+"/statuses/"+commitSHA)
+            ContentResponse response = client.POST("https://api.github.com/repos/"+repository.owner+"/"+repository.name+"/statuses/"+commitSHA)
                 .header("Accept", "application/vnd.github+json")
                 .header("Authorization", "Bearer "+authToken)
                 .header("X-GitHub-Api-Version", "2022-11-28")
