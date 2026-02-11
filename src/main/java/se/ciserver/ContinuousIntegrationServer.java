@@ -93,19 +93,19 @@ public class ContinuousIntegrationServer extends AbstractHandler
                     try {
                         testResult = TestRunner.runTests(push.ref);
                         response.getWriter().println(testResult);
+                        if (TestRunner.testSuccess)
+                            setCommitStatus(push, CommitStatus.success, "All tests succeeded", "ci_server");
+                        else
+                            setCommitStatus(push, CommitStatus.failure, "Test failures", "ci_server");
                     } catch (Exception e) {
                         e.printStackTrace();
                         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                         response.getWriter().println("Error running tests: " + e.getMessage());
+                        setCommitStatus(push, CommitStatus.failure, "Error running tests: " + e.getMessage(), "ci_server");
                     }
                     response.setStatus(HttpServletResponse.SC_OK);
                 }
-
-                boolean testsSucceed = true;
-                if (testsSucceed)
-                    setCommitStatus(push, CommitStatus.success, "All tests succeeded", "ci_server");
-                else
-                    setCommitStatus(push, CommitStatus.failure, "Test failures", "ci_server");
+                
             }
             catch (InvalidPayloadException e)
             {

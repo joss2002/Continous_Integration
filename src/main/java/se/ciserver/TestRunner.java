@@ -6,6 +6,8 @@ import java.util.function.Consumer;
 public class TestRunner {
 
     public static Consumer<String[]> commandHook = null;
+    public static boolean testSuccess = false;
+
     /**
      * Executes automated test suite for the specified git branch
      * 
@@ -43,6 +45,7 @@ public class TestRunner {
         int exitCondition = process.waitFor();
 
         if(exitCondition == 0) { // Normal termination
+            testSuccess = true;
             return "All test passed \n" + sb;
         } else {
             return "Tests failed \n" + sb;
