@@ -1,4 +1,6 @@
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import org.junit.Test;
 
 import java.io.OutputStream;
@@ -29,6 +31,8 @@ public class MainTest
     @Test
     public void ciServerHandlePushValidPayloadLocal() throws Exception
     {
+        ContinuousIntegrationServer.isIntegrationTest = true;
+
         Server server = new Server(0);
         server.setHandler(new ContinuousIntegrationServer());
         server.start();
@@ -63,6 +67,8 @@ public class MainTest
     @Test
     public void ciServerHandlePushInvalidPayloadLocal() throws Exception
     {
+        ContinuousIntegrationServer.isIntegrationTest = true;
+        
         Server server = new Server(0);
         server.setHandler(new ContinuousIntegrationServer());
         server.start();
@@ -123,4 +129,14 @@ public class MainTest
         PushParser parser = new PushParser();
         parser.parse(brokenJson);
     }
+
+   /**
+     * Tests that at least one test fails
+     */
+    @Test
+    public void simpleTest() {
+        int sum = 1+1;
+        assertTrue(sum==2);
+    }
+
 }

@@ -16,7 +16,13 @@ public class TestRunner {
         runCommand("git", "checkout", branch);
         runCommand("git", "pull");
 
-        ProcessBuilder pb = new ProcessBuilder("mvn","-B","-Dtest=PushParserTest", "test");
+        String mvnCommand = "mvn";
+        if (System.getProperty("os.name").toLowerCase().contains("win")) {
+            mvnCommand = "mvn.cmd";
+        }
+
+        ProcessBuilder pb = new ProcessBuilder(mvnCommand,"-B","-Dtest=MainTest", "test");
+
         Process process = pb.start();
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
