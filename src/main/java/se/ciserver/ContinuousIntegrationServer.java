@@ -24,15 +24,6 @@ import se.ciserver.github.PushParser;
 import se.ciserver.github.InvalidPayloadException;
 
 /**
- * Github commit statuses
- */
-enum CommitStatus {
-    failure,
-    pending,
-    success,
-}
-
-/**
  * A Jetty-based CI-server that can start locally and receive HTTP-requests.
  */
 public class ContinuousIntegrationServer extends AbstractHandler
@@ -93,7 +84,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
                 response.getWriter().println("Push received: " + push.after);
 
                 String githubCommitUrl = "https://api.github.com/repos/"+push.repository.owner.name+"/"+push.repository.name+"/statuses/"+push.after;
-                setCommitStatus(githubCommitUrl, CommitStatus.pending, "Testing in progres...", "ci_server");
+                setCommitStatus(githubCommitUrl, "pending", "Testing in progres...", "ci_server");
 
                 // RUN TESTS FOR THIS BRANCH
                 if(!isIntegrationTest) {
@@ -102,14 +93,14 @@ public class ContinuousIntegrationServer extends AbstractHandler
                         testResult = TestRunner.runTests(push.ref);
                         response.getWriter().println(testResult);
                         if (TestRunner.testSuccess)
-                            setCommitStatus(githubCommitUrl, CommitStatus.success, "All tests succeeded", "ci_server");
+                            setCommitStatus(githubCommitUrl, "success", "All tests succeeded", "ci_server");
                         else
-                            setCommitStatus(githubCommitUrl, CommitStatus.failure, "Test failures", "ci_server");
+                            setCommitStatus(githubCommitUrl, "failure", "Test failures", "ci_server");
                     } catch (Exception e) {
                         e.printStackTrace();
                         response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                         response.getWriter().println("Error running tests: " + e.getMessage());
-                        setCommitStatus(githubCommitUrl, CommitStatus.failure, "Error running tests: " + e.getMessage(), "ci_server");
+                        setCommitStatus(githubCommitUrl, "failure", "Error running tests: " + e.getMessage(), "ci_server");
                     }
                     response.setStatus(HttpServletResponse.SC_OK);
                 }
@@ -138,37 +129,25 @@ public class ContinuousIntegrationServer extends AbstractHandler
     /**
      * Send a POST request setting the status of a github commit
      * @param url           - The url of the commit
-     * @param status        - The status to set for the commit
+     * @param status        - The status to set for the commit, "success", "failure" or "pending"
      * @param description   - Description of the status
      * @param context       - The system setting the status
      */
     public void setCommitStatus(String url,
-                                CommitStatus status,
+                                String status,
                                 String description,
                                 String context)
     {
-        String statusString = "";
-
-        switch (status) {
-            case failure:
-                statusString = "failure";
-                break;
-            case pending:
-                statusString = "pending";
-                break;
-            case success:
-                statusString = "success";
-                break;
-        }
         
         try {
             // if push.repository.owner.name can be the full name filled into github this would fail, if its always the username then this works
-            ContentResponse response = httpClient.POST(url)
+            org.eclipse.jetty.client.api.Request request = httpClient.POST(url)
                 .header("Accept", "application/vnd.github+json")
                 .header("Authorization", "Bearer "+accessToken)
                 .header("X-GitHub-Api-Version", "2022-11-28")
-                .content(new StringContentProvider("{\"state\":\""+statusString+"\",\"description\":\""+description+"\",\"context\":\""+context+"\"}"), "application/json")
-                .send();
+                .content(new StringContentProvider("{\"state\":\""+status+"\",\"description\":\""+description+"\",\"context\":\""+context+"\"}"), "application/json");
+            
+            ContentResponse response = request.send();
 
             if (response.getContentAsString().equals("{\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/commits/statuses#create-a-commit-status\",\"status\":\"404\"}")) {
                 System.out.println("Set Commit Status failed, possibly wrong repository url");
