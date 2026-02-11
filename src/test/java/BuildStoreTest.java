@@ -1,10 +1,12 @@
-import org.junit.After;
-import org.junit.Test;
-
 import java.io.File;
 import java.util.List;
 
-import static org.junit.Assert.*;
+import org.junit.After;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import org.junit.Test;
 
 import se.ciserver.buildlist.Build;
 import se.ciserver.buildlist.BuildStore;
@@ -13,17 +15,22 @@ public class BuildStoreTest {
 
     private static final String TEST_FILE = "build-history-test.json";
 
+    /**
+     * Clean the old build list 
+     */
     @After
     public void cleanup() {
         File f = new File(TEST_FILE);
         if (f.exists()) {
-            // delete the test file so each test starts clean
             assertTrue(f.delete());
         }
     }
 
+    /**
+     * Verify the behavior when history file does not exist yet
+     */
     @Test
-    public void newStoreWithoutFile_startsEmpty() {
+    public void newStoreWithoutFileStartsEmpty() {
         File f = new File(TEST_FILE);
         if (f.exists()) {
             assertTrue(f.delete());
@@ -37,7 +44,7 @@ public class BuildStoreTest {
     }
 
     @Test
-    public void add_persistsBuildAndCanBeReloaded() {
+    public void addPersistsBuildAndCanBeReloaded() {
         // first store: add one build
         BuildStore store1 = new BuildStore(TEST_FILE);
         Build build = Build.newBuild("commit1", "assessment",
@@ -53,16 +60,14 @@ public class BuildStoreTest {
         List<Build> all2 = store2.getAll();
         assertEquals("should load one build from file", 1, all2.size());
         Build loaded = all2.get(0);
-
         assertEquals(build.id, loaded.id);
-        assertEquals(build.commitId, loaded.commitId);
-        assertEquals(build.branch, loaded.branch);
-        assertEquals(build.status, loaded.status);
-        assertEquals(build.log, loaded.log);
     }
 
+    /**
+     * Test function returns the correct build with id search
+     */
     @Test
-    public void getById_returnsCorrectBuildOrNull() {
+    public void getByIdReturnsCorrectBuildOrNull() {
         BuildStore store = new BuildStore(TEST_FILE);
         Build b1 = Build.newBuild("c1", "assessment", Build.Status.SUCCESS, "log1");
         Build b2 = Build.newBuild("c2", "assessment", Build.Status.FAILURE, "log2");

@@ -9,8 +9,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import se.ciserver.buildlist.Build;  
+
 /**
- * Handles the storage of build and related
+ * Handles persistent storage of Build history.
  */
 public class BuildStore {
 
@@ -19,9 +21,9 @@ public class BuildStore {
     private final List<Build> builds = new ArrayList<>();
 
     /**
-     * Creates an File object in the program referring to the BuildList
-     * 
-     * @param filePath  Location of where the file is located
+     * Creates a BuildStore pointing at the given file path and loads existing history.
+     *
+     * @param filePath Location of the history file
      */
     public BuildStore(String filePath) {
         this.storeFile = new File(filePath);
@@ -29,16 +31,16 @@ public class BuildStore {
     }
 
     /**
-     * Extract the read-only list of build history (build list)
+     * Returns a read-only copy of the build history.
      */
     public synchronized List<Build> getAll() {
         return Collections.unmodifiableList(new ArrayList<>(builds));
     }
 
     /**
-     * Extract a specific build history by its unique id
-     * 
-     * @param id    The identifier of the requested build history
+     * Returns the build with the given id, or null if not found.
+     *
+     * @param id the build identifier
      */
     public synchronized Build getById(String id) {
         return builds.stream()
@@ -48,9 +50,9 @@ public class BuildStore {
     }
 
     /**
-     * Add another build into the build history and immediately save it into file
-     * 
-     * @param build The Build object that stores the information of current build
+     * Adds a build to history and immediately persists it.
+     *
+     * @param build the Build to store
      */
     public synchronized void add(Build build) {
         builds.add(build);
@@ -58,8 +60,8 @@ public class BuildStore {
     }
 
     /**
-     * Load the file as described in storeFile
-     * If the funciton results in an exception, the corresponding exception will be printed in the server console
+     * Loads build history from the backing file if it exists.
+     * Any exception is printed to the server console.
      */
     private void load() {
         try {
@@ -77,17 +79,16 @@ public class BuildStore {
             builds.clear();
             builds.addAll(loaded);
         } catch (Exception e) {
-            e.printStackTrace(); 
+            e.printStackTrace();
         }
     }
 
     /**
-     * Save the build into the file
+     * Persists the current build history to the backing file.
      */
     private void save() {
         try {
-            byte[] bytes = mapper.writerWithDefaultPrettyPrinter()
-                    .writeValueAsBytes(builds);
+            byte[] bytes = mapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(builds);
             Files.write(storeFile.toPath(), bytes);
         } catch (Exception e) {
             e.printStackTrace();

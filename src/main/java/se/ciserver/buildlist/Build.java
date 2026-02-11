@@ -10,12 +10,18 @@ public class Build {
 
     public enum Status { SUCCESS, FAILURE }
 
-    public final String id;
-    public final String commitId;
-    public final String branch;
-    public final Instant timestamp;
-    public final Status status;
-    public final String log;
+    public String id;
+    public String commitId;
+    public String branch;
+    public String timestamp;
+    public Status status;
+    public String log;
+
+    /**
+     * Default Consturctor of Build
+     */
+    public Build(){
+    }
 
     /**
      * Constructs a Build objects
@@ -28,7 +34,7 @@ public class Build {
      * @param log       Output produced during the build and tests
      */
     public Build(String id, String commitId, String branch,
-                 Instant timestamp, Status status, String log) {
+                 String timestamp, Status status, String log) {
         this.id = id;
         this.commitId = commitId;
         this.branch = branch;
@@ -43,7 +49,7 @@ public class Build {
                 UUID.randomUUID().toString(),
                 commitId,
                 branch,
-                Instant.now(),
+                Instant.now().toString(),
                 status,
                 log
         );
