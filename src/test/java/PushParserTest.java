@@ -57,6 +57,6 @@ public class PushParserTest {
     @Test
     public void simpleTest() {
         int sum = 1+1;
-        assertTrue(sum==3);
+        assertTrue(sum==2);
     }
 }
