@@ -43,12 +43,19 @@ public class ContinuousIntegrationServer extends AbstractHandler
     private String accessToken;
 
     /**
-     * Constructs the ContinuousIntegrationServer
+     * Constructs the ContinuousIntegrationServer and starts a HttpClient
      * @param accessToken A githubs access token with commit status permission for the repository
+     * 
+     * @throws Exception if httpClient fails to start
      */
-    public ContinuousIntegrationServer(String accessToken) {
+    public ContinuousIntegrationServer(String accessToken)
+        throws Exception
+    {
         this.accessToken = accessToken;
-        startHttpClient();
+        
+        SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
+        httpClient = new HttpClient(sslContextFactory);
+        httpClient.start();
     }
 
     /**
@@ -128,21 +135,6 @@ public class ContinuousIntegrationServer extends AbstractHandler
     }
 
     /**
-     * Create and start the HttpClient
-     */
-    public void startHttpClient()
-    {
-        SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
-        httpClient = new HttpClient(sslContextFactory);
-        try {
-            httpClient.start();
-        } catch (Exception e) {
-            // Client failed to start
-            System.out.println("Start Http Client failed!");
-        }
-    }
-
-    /**
      * Send a POST request setting the status of a git commit
      * @param push          - The git push to set status of
      * @param status        - The status to set for the commit
@@ -182,7 +174,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
             }
         } catch (InterruptedException | ExecutionException | TimeoutException exception) {
             // Post request failed
-            System.out.println("Set Commit Status failed");
+            System.out.println("Set Commit Status failed, post request exception");
         }
         
     }
@@ -190,7 +182,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
     /**
      * Starts the CI-server in command line
      *
-     * @param args - Command-line arguments
+     * @param args - Command-line arguments, 1: a github access token to the repository
      *
      * @throws Exception If the server fails to start or join the thread.
      */
