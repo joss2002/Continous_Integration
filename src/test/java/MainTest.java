@@ -4,8 +4,10 @@ import static org.junit.Assert.assertTrue;
 import org.junit.After;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -238,6 +240,26 @@ public class MainTest
 
         server.stop();
         server.join();        
+    }
+
+    /**
+     * Tests that setCommitStatus outputs error message if url connection fails
+     * 
+     * @throws Exception If the server fails to start
+     */
+    @Test
+    public void setCommitStatusFailsWithInvalidUrl()
+        throws Exception
+    {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream systemOutCatcher = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(systemOutCatcher));
+
+        ContinuousIntegrationServer ciServer = new ContinuousIntegrationServer("github_acces_token");
+        ciServer.setCommitStatus("http://invalid", "success", "desc", "context");
+
+        assertEquals("Set Commit Status failed, post request exception\n", systemOutCatcher.toString());
+        System.setOut(originalOut);
     }
 
 }
