@@ -7,7 +7,6 @@ import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
 import org.eclipse.jetty.client.util.StringContentProvider;
 
 import javax.servlet.http.HttpServletRequest;
@@ -15,14 +14,12 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.ServletException;
 
 import java.io.IOException;
-import java.lang.reflect.Executable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
 import se.ciserver.github.Push;
 import se.ciserver.github.PushParser;
-import se.ciserver.github.Repository;
 import se.ciserver.github.InvalidPayloadException;
 
 /**
@@ -40,6 +37,7 @@ enum CommitStatus {
 public class ContinuousIntegrationServer extends AbstractHandler
 {
     private final PushParser parser = new PushParser();
+    private HttpClient httpClient;
 
     /**
      * Handles incoming HTTP requests for the CI server and presents necessary information.
@@ -96,20 +94,17 @@ public class ContinuousIntegrationServer extends AbstractHandler
     }
 
     /**
-     * Create and start a HttpClient
-     * @return started HttpClient
+     * Create and start the HttpClient
      */
-    public HttpClient startHttpClient()
+    public void startHttpClient()
     {
         SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
-        HttpClient client = new HttpClient(sslContextFactory);
+        httpClient = new HttpClient(sslContextFactory);
         try {
-            client.start();
+            httpClient.start();
         } catch (Exception e) {
             // Client failed to start
         }
-
-        return client;
     }
 
     /**
@@ -121,16 +116,12 @@ public class ContinuousIntegrationServer extends AbstractHandler
      * @param description   - Description of the status
      * @param context       - The system setting the status
      */
-    public void setCommitStatus(HttpClient client,
-                                Repository repository,
-                                String commitSHA,
+    public void setCommitStatus(Push push,
                                 String accessToken,
                                 CommitStatus status,
                                 String description,
                                 String context)
-                                
     {
-
         String statusString = "";
 
         switch (status) {
@@ -146,12 +137,12 @@ public class ContinuousIntegrationServer extends AbstractHandler
         }
         
         try {
-        ContentResponse response = client.POST("https://api.github.com/repos/"+repository.owner+"/"+repository.name+"/statuses/"+commitSHA)
-            .header("Accept", "application/vnd.github+json")
-            .header("Authorization", "Bearer "+accessToken)
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .content(new StringContentProvider("{\"state\":\""+statusString+"\",\"description\":\""+description+"\",\"context\":\""+context+"\"}"), "application/json")
-            .send();
+            httpClient.POST("https://api.github.com/repos/"+push.repository.owner+"/"+push.repository.name+"/statuses/"+push.after)
+                .header("Accept", "application/vnd.github+json")
+                .header("Authorization", "Bearer "+accessToken)
+                .header("X-GitHub-Api-Version", "2022-11-28")
+                .content(new StringContentProvider("{\"state\":\""+statusString+"\",\"description\":\""+description+"\",\"context\":\""+context+"\"}"), "application/json")
+                .send();
         } catch (InterruptedException | ExecutionException | TimeoutException exception) {
             // Post request failed
         }
