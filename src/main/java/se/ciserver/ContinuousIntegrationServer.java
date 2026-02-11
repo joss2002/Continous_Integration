@@ -177,6 +177,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
     {
         if (args.length<1) {
             System.out.println("Too few arguments, needs 1: github access token");
+            return;
         }
 
         Server server = new Server(8080);
