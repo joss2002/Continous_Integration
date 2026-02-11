@@ -229,19 +229,12 @@ mvn test
 
 ## Automated Test Execution via Github Push Events
 
-When a push is made to the git repository, Github sends a HTTP POST request (Webhook) to the running server. From the request and its payload, the branch to which the push was made can be extracted. Upon parsing the payload, the servers checks out to the target branch, pulls the latest changes and runs the project's test suite. So far, only existing unit tests have been executed automatically.
+When a push is made to the git repository, Github sends a HTTP POST request (Webhook) to the running server. From the request and its payload, the branch to which the push was made can be extracted. Upon parsing the payload, the server checks out to the target branch, pulls the latest changes and runs the project's test suite. So far, only existing unit tests have been executed automatically.
 
 <details>
 <summary id="test-functionality"><span style="font-size:15px; font-weight:bold;">Test functionality</span></summary>
 
-1. Start CI server
-
-```bash
-mvn clean compile
-```
-```bash
-mvn exec:java
-```
+1. Run the server, see [Run the server](#run-the-server).
 
 
 2. Expose server to Github using `ngrok`
