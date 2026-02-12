@@ -1,26 +1,27 @@
 package se.ciserver;
 
-import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.AbstractHandler;
-
-import org.eclipse.jetty.util.ssl.SslContextFactory;
-
-import org.eclipse.jetty.client.HttpClient;
-import org.eclipse.jetty.client.api.ContentResponse;
-import org.eclipse.jetty.client.util.StringContentProvider;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.ServletException;
-
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
-import se.ciserver.build.Compiler;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.util.StringContentProvider;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.AbstractHandler;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+
 import se.ciserver.build.CompilationResult;
+import se.ciserver.build.Compiler;
+import se.ciserver.buildlist.Build;
+import se.ciserver.buildlist.BuildStore;
+import se.ciserver.github.InvalidPayloadException;
 import se.ciserver.github.Push;
 import se.ciserver.github.PushParser;
 
@@ -34,6 +35,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
 
     private final PushParser parser   = new PushParser();
     private final Compiler   compiler = new Compiler();
+    private final BuildStore store = new BuildStore("build-history.json");
 
     private HttpClient httpClient;
     private String accessToken;
@@ -81,10 +83,6 @@ public class ContinuousIntegrationServer extends AbstractHandler
             {
                 // Parse the GitHub push event payload into a Push object
                 Push push = parser.parse(json);
-                // TODO: 1. To add respective build results
-                // 2. Wrap into build and persist
-                // 3. Response with info and URL
-                // To be added after compilation branch
 
                 // Log the push event details to the server console
                 System.out.println("\nReceived push on branch : " + push.ref +
@@ -100,6 +98,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
                     push.ref,
                     push.after);
 
+
                 // Log the compilation outcome to the server console
                 if (result.success)
                 {
@@ -109,6 +108,9 @@ public class ContinuousIntegrationServer extends AbstractHandler
                 {
                     System.out.println("\nCompilation FAILED");
                 }
+
+                Build build = Build.newBuild(push.after, push.ref, result.success, result.output);
+                store.add(build);
 
                 // Respond with 200 regardless of build outcome;
                 // the webhook delivery itself was successful
