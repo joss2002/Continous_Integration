@@ -310,6 +310,11 @@ The notification implementation is tested by running a test server and sending t
 
 ---
 
+## Build List
+The build list url is [http://localhost:8080/builds](http://localhost:8080/builds).
+
+---
+
 ## The states of the team
 
 By analyzing the team, based on [SEMAT standard [p.51-52]](https://www.omg.org/spec/Essence/1.2/PDF), following this instance of the project, it could be concluded that currently positioned between *"Formed"* and *"Collaborating"*. This because some of the checklist items are not met in relation to *"Formed"* but at the same time some checklist items has been fulfilled related to *"Collaborating"*. The checklist looks as follows;
