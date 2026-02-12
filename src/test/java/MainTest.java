@@ -234,7 +234,7 @@ public class MainTest
      * Tests that compiler returns failed compilation result for bad url, branch and SHA
      */
     @Test
-    public void compilerFails()
+    public void compilerReturnesFailedCompilationForBadInputs()
     {
         Compiler   compiler = new Compiler();
         CompilationResult result = compiler.compile(

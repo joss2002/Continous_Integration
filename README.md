@@ -271,20 +271,22 @@ mvn test
 ```
 ---
 
-## Compilation
+## Compilation and Automated Test Execution
 
 #### Implementation
 
-When the CI server receives a GitHub push webhook on `/webhook`, it triggers compilation of the pushed branch. The `Compiler` class in `se.ciserver.build` performs the following steps:
+When the CI server receives a GitHub push webhook on `/webhook`, it triggers compilation of the pushed branch. After compilation the `Compiler` class runs the tests. The `Compiler` class in `se.ciserver.build` performs the following steps:
 
 1. Creates a temporary directory
 2. Clones the specific branch using `git clone --branch <branch> --single-branch <url>`
 3. Checks out the exact commit SHA with `git checkout <sha>`
 4. Runs `mvn clean compile` in the cloned project
 5. Captures and prints the build output to the server console
-6. Cleans up the temporary directory
+5. Runs `mvn test` in the cloned project
+6. Captures and prints the test output to the server console
+7. Cleans up the temporary directory
 
-The compilation result (success/failure) is returned in the HTTP response and printed to the server console.
+The compilation result (success/failure) and test result (success/failure) is returned in the HTTP response and shown on the ngrok site.
 
 #### Unit testing
 
@@ -295,43 +297,9 @@ Compilation is unit-tested in `src/test/java/MainTest.java` with the following t
 - `compilerHandlesCloneFailure()` — subclasses `Compiler` to override `createProcessBuilder()` with a failing command, verifying that a clone failure returns `success=false` without throwing an exception.
 - `compilerReturnsSuccessWhenAllStepsPass()` — subclasses `Compiler` to override `createProcessBuilder()` with a succeeding command, verifying the full pipeline returns `success=true`.
 - `ciServerHandleCompilationOnPush()` — starts a local Jetty server, sends a valid push payload to `/webhook`, and verifies the response is `200` and contains the compilation result with the commit SHA.
+- `compilerReturnesFailedCompilationForBadInputs` - verifies failed compilation results are returned for bad parameters.
 
 To run the tests, see [Perform unit tests](#perform-unit-tests).
-
----
-
-## Automated Test Execution via Github Push Events
-
-When a push is made to the git repository, Github sends a HTTP POST request (Webhook) to the running server. From the request and its payload, the branch to which the push was made can be extracted. Upon parsing the payload, the server checks out to the target branch, pulls the latest changes and runs the project's test suite.
-
-The automated test logic is handled by the `TestRunner` class which is responsible for executing the following:
-
-<details>
-<summary id="test-functionality"><span style="font-size:15px; font-weight:bold;">Functionality</span></summary>
-
-1. Checkout the pushed branch using Git.
-
-2. Running the test suite using `mvn test`
-
-3. Capturing the output and exit status
-
-4. Returning the test logs, displayed both in server terminal and in the HTTP response.
-
-</details>
-
-
-<details>
-<summary id="test-functionality"><span style="font-size:15px; font-weight:bold;">Test the functionality</span></summary>
-
-1. Run the server, see [Run the server](#run-the-server).
-
-2. Configure Webhook from server to repository.
-
-2. Expose server to Github using `ngrok`.
-
-3. Observe response upon a Github push event in terminal or HTTP response.
-
-</details>
 
 ---
 
@@ -340,9 +308,6 @@ The automated test logic is handled by the `TestRunner` class which is responsib
 Notifications are implemented by setting the status of commits using github's REST api. A post request containing the status is sent to the url of the push's last commit.
 
 The notification implementation is tested by running a test server and sending the status post request to it instead, which checks that its contents are correct.
-
-### Unit testing of test execution logic
-To avoid using real Git and Maven commands during unit testing, the `TestRunner` class uses a command hook mechanism that intercepts command execution. When this hook mechanism is set, command are captured rather than executed and the expected behaviour could be asserted within the unit test.
 
 ---
 
