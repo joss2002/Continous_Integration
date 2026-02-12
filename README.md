@@ -239,19 +239,32 @@ mvn test
 
 When a push is made to the git repository, Github sends a HTTP POST request (Webhook) to the running server. From the request and its payload, the branch to which the push was made can be extracted. Upon parsing the payload, the server checks out to the target branch, pulls the latest changes and runs the project's test suite.
 
+The automated test logic is handled by the `TestRunner` class which is responsible for executing the following:
+
 <details>
-<summary id="test-functionality"><span style="font-size:15px; font-weight:bold;">Test functionality</span></summary>
+<summary id="test-functionality"><span style="font-size:15px; font-weight:bold;">Functionality</span></summary>
+
+1. Checkout the pushed branch using Git.
+
+2. Running the test suite using `mvn test`
+
+3. Capturing the output and exit status
+
+4. Returning the test logs, displayed both in server terminal and in the HTTP response.
+
+</details>
+
+
+<details>
+<summary id="test-functionality"><span style="font-size:15px; font-weight:bold;">Test the functionality</span></summary>
 
 1. Run the server, see [Run the server](#run-the-server).
 
+2. Configure Webhook from server to repository.
 
-2. Expose server to Github using `ngrok`
+2. Expose server to Github using `ngrok`.
 
-Configure Github Webhook with the ngrok forwarding URL (e.g https://.../webhook)
-
-3. See response
-
-When a push is made, the CI server automatically executes the tests on the pushed branch. The result can be viewed in terminal or in the ngrok web interface.
+3. Observe response upon a Github push event in terminal or HTTP response.
 
 </details>
 
@@ -260,6 +273,11 @@ When a push is made, the CI server automatically executes the tests on the pushe
 Notifications are implemented by setting the status of commits using github's REST api. A post request containing the status is sent to the url of the push's last commit.
 
 The notification implementation is tested by running a test server and sending the status post request to it instead, which checks that its contents are correct.
+
+### Unit testing of test execution logic
+To avoid using real Git and Maven commands during unit testing, the `TestRunner` class uses a command hook mechanism that intercepts command execution. When this hook mechanism is set, command are captured rather than executed and the expected behaviour could be asserted within the unit test. 
+
+
 
 ## Statements of contributions
 
