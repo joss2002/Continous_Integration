@@ -20,6 +20,7 @@ public class CompilationResult
      * @param success Whether the compilation succeeded
      * @param testSuccess Whether all the tests succeeded
      * @param output  The combined stdout/stderr output from the build
+     * @param testOutput  The combined stdout/stderr output from the tests
      */
     public CompilationResult(boolean success, boolean testSuccess, String output, String testOutput)
     {
