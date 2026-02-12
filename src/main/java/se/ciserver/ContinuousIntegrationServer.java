@@ -19,6 +19,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import se.ciserver.build.Compiler;
+import se.ciserver.build.CompilationResult;
 import se.ciserver.github.Push;
 import se.ciserver.github.PushParser;
 import se.ciserver.github.InvalidPayloadException;
@@ -28,8 +30,12 @@ import se.ciserver.github.InvalidPayloadException;
  */
 public class ContinuousIntegrationServer extends AbstractHandler
 {
-    private final PushParser parser = new PushParser();
+    /** Flag to skip test execution during integration tests. */
     public static boolean isIntegrationTest = false;
+
+    private final PushParser parser   = new PushParser();
+    private final Compiler   compiler = new Compiler();
+
     private HttpClient httpClient;
     private String accessToken;
     private String latestTestOutput = "No tests run yet.";
@@ -69,18 +75,40 @@ public class ContinuousIntegrationServer extends AbstractHandler
     {
         if ("/webhook".equals(target) && "POST".equalsIgnoreCase(request.getMethod()))
         {
+            // Read the full JSON payload from the request body
             String json = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
 
             try
             {
+                // Parse the GitHub push event payload into a Push object
                 Push push = parser.parse(json);
 
+                // Log the push event details to the server console
                 System.out.println("\nReceived push on branch : " + push.ref +
                                    "\nAfter SHA               : " + push.after +
                                    "\nRepository URL          : " + push.repository.clone_url +
                                    "\nPusher name             : " + push.pusher.name +
                                    "\n\nHead commit message     : " + push.head_commit.message);
 
+                // P1: Clone the pushed branch and run mvn clean compile
+                System.out.println("\nStarting compilation...");
+                CompilationResult result = compiler.compile(
+                    push.repository.clone_url,
+                    push.ref,
+                    push.after);
+
+                // Log the compilation outcome to the server console
+                if (result.success)
+                {
+                    System.out.println("\nCompilation SUCCEEDED");
+                }
+                else
+                {
+                    System.out.println("\nCompilation FAILED");
+                }
+
+                // Respond with 200 regardless of build outcome;
+                // the webhook delivery itself was successful
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println("Push received: " + push.after);
 
@@ -112,6 +140,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
             }
             catch (InvalidPayloadException e)
             {
+                // Malformed or missing JSON fields
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.getWriter().println("Invalid payload: " + e.getMessage());
             }

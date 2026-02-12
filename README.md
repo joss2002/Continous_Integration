@@ -220,6 +220,35 @@ At line:1 char:1
 
 </details>
 
+### Compilation (P1)
+
+#### Implementation
+
+When the CI server receives a GitHub push webhook on `/webhook`, it triggers compilation of the pushed branch. The `Compiler` class in `se.ciserver.build` performs the following steps:
+
+1. Creates a temporary directory
+2. Clones the specific branch using `git clone --branch <branch> --single-branch <url>`
+3. Checks out the exact commit SHA with `git checkout <sha>`
+4. Runs `mvn clean compile` in the cloned project
+5. Captures and prints the build output to the server console
+6. Cleans up the temporary directory
+
+The compilation result (success/failure) is returned in the HTTP response and printed to the server console.
+
+#### Unit testing
+
+Compilation is unit-tested in `src/test/java/MainTest.java` with the following tests:
+
+- `compilationResultStoresSuccess()` — verifies that a successful `CompilationResult` stores `success=true` and the build output.
+- `compilationResultStoresFailure()` — verifies that a failed `CompilationResult` stores `success=false` and the build output.
+- `compilerHandlesCloneFailure()` — subclasses `Compiler` to override `createProcessBuilder()` with a failing command, verifying that a clone failure returns `success=false` without throwing an exception.
+- `compilerReturnsSuccessWhenAllStepsPass()` — subclasses `Compiler` to override `createProcessBuilder()` with a succeeding command, verifying the full pipeline returns `success=true`.
+- `ciServerHandleCompilationOnPush()` — starts a local Jetty server, sends a valid push payload to `/webhook`, and verifies the response is `200` and contains the compilation result with the commit SHA.
+
+To run the tests, see [Perform unit tests](#perform-unit-tests).
+
+---
+
 ## Perform unit tests
 
 1. Build the project with **Maven**
@@ -233,6 +262,33 @@ mvn clean compile
 ```bash
 mvn test
 ```
+
+3. Verify all tests pass in the output
+
+```console
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0
+
+BUILD SUCCESS
+```
+
+### Connect the server to a webhook with ngrok
+
+1. Run the server, see [Run the server](#run-the-server).
+
+2. In a separate terminal, start ngrok to expose port `8080`:
+
+```bash
+ngrok http 8080
+```
+
+3. Copy the forwarding URL (e.g. `https://xxxx.ngrok-free.app`) from the ngrok output.
+
+4. In your GitHub repository, go to **Settings > Webhooks > Add webhook** and set:
+   - **Payload URL**: `https://xxxx.ngrok-free.app/webhook`
+   - **Content type**: `application/json`
+   - **Events**: Select "Just the push event"
+
+5. Push a commit to the repository and observe the compilation output in the server console.
 ---
 
 ## Automated Test Execution via Github Push Events
@@ -284,5 +340,7 @@ To avoid using real Git and Maven commands during unit testing, the `TestRunner`
 | Name                       | Contribution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 |----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Josefine "joss2002" Nyholm | <ul><li>[x] Added initial **Maven** file-tree structure, including a basic `pom.xml` with **JDK 17** support.</li></ul><ul><li>[x] Added skeleton for CI-server in `src/main/java/se/ciserver/ContinuousIntegrationServer.java`.<ul><li>Added related dependencies, plugins; `jetty-server`, `exec-maven-plugin`</li><li>[x] Added additional documentation.</li></ul></li></ul><ul><li>[x] Added **GitHub** push event `JSON` payload component.<ul><li>[x] Added required Webhook payload object parameters and classes for `push` within `src/main/java/se/ciserver/github` including files; `PushParser.java`, `Push.java`, `Pusher.java`, `Commit.java`, `Author.java` and `Repository.java`.</li><li>[x] Added additional `Exception` extension in `InvalidPayloadException.java` specified for invalid payloads.</li><li>[x] Integrated the push parsing `JSON` payload functionality in the `ContinuousIntegrationServer.java` `handler()` to allow the CI-server to receive `JSON` payloads and present the relevant variables; `ref`, `after`, `repository.clone_url`, `pusher.name`, `head_commit.message`.</li><li>[x] Added unit tests in `src/test/java/MainTest.java` for `PushParser.java` push parsing `JSON` payload functionality and local testing of the `ContinuousIntegrationServer.java` CI-server handling of push parsing `JSON` payloads. This, as well as an additional file `src/main/java/se/ciserver/TestUtils.java` including test utilities such as reading filed. Supporting the unit tests a test `JSON` file `src/main/test/resources/githubPush.java` was added to represent a typical push event payload.</li><li>[x] Added additional dependencies in `pom.xml` for `jackson-databind` and `junit`</li><li>[x] Added additional documentation in `README.md`.</li></ul></li></ul> |
+| Avid "HotFazz" Fayaz | <ul><li>[x] Added webhook-triggered compilation (P1) in `src/main/java/se/ciserver/build/Compiler.java`.<ul><li>[x] Clones the pushed branch, checks out the exact commit, and runs `mvn clean compile`.</li><li>[x] Added `CompilationResult.java` to hold build outcome and output.</li><li>[x] Integrated compilation into `ContinuousIntegrationServer.java` webhook handler.</li><li>[x] Added unit tests in `MainTest.java` for `CompilationResult` and `Compiler` failure handling.</li><li>[x] Added documentation in `README.md` for compilation implementation and unit testing.</li></ul></li></ul> |
+| Albin "zzimbaa" Blomqvist | <ul><li>[x] Implemented automated test execution triggered by GitHub push webhooks.</li></ul><ul><li>[x] Added `TestRunner.java` in `src/main/java/se/ciserver/` to handle CI test execution.<ul><li>[x] Dynamically checks out the pushed branch using git checkout and updates it with git pull.</li><li>[x] Executes Maven test suite using `mvn test`.</li><li>[x] Captures test output via `ProcessBuilder` and write logs to both `terminal` and `HTTP response` indicating test success or failure.</li><li>[x] Determines build success/failure based on process exit code.</li><li>[x] Added unit test for `runTests` method to verify correct correct branch checkout and pull commands using command hook.</li></ul></li></ul><ul><li>[x] Integrated the test execution logic into `ContinuousIntegrationServer.java` so that tests are triggered automatically upon receiving a GitHub push webhook event.</li></ul><ul><li>[x] Verified webhook-based test execution using `ngrok` for local tunneling and GitHub webhook deliveries.</li></ul><ul><li>[x] Added documentation in `README.md` describing how to trigger automated tests via GitHub push events.</li></ul> |
 | Erik Olsson "erik-ol" | <ul><li>[x] Added **GitHub** commit status setter component.<ul><li>[x] Added `ContinuousIntegrationServer()` `startHttpClient()` and `setCommitStatus()` to `ContinuousIntegrationServer.java` <li>[x] Extended `ContinuousIntegrationServer.java` `handler()` to set commit status of recieved pushes. <li>[x] Added unit tests in `src/test/java/MainTest.java` for `setCommitStatus()` sending post request functionality and failing due to invalid url. <li>[x] Implemented github access token handling <li>[x] Added additional dependencies in `pom.xml` for `jetty-client` <li>[x] Added documentation for commit status implementation and testing in `README.md`. </li></ul></li></ul> |
 | Albin "zzimbaa" Blomqvist | <ul><li>[x] Implemented automated test execution triggered by GitHub push webhooks.</li></ul><ul><li>[x] Added `TestRunner.java` in `src/main/java/se/ciserver/` to handle CI test execution.<ul><li>[x] Dynamically checks out the pushed branch using git checkout and updates it with git pull.</li><li>[x] Executes Maven test suite using `mvn test`.</li><li>[x] Captures test output via `ProcessBuilder` and write logs to both `terminal` and `HTTP response` indicating test success or failure.</li><li>[x] Determines build success/failure based on process exit code.</li><li>[x] Added unit test for `runTests` method to verify correct correct branch checkout and pull commands using command hook.</li></ul></li></ul><ul><li>[x] Integrated the test execution logic into `ContinuousIntegrationServer.java` so that tests are triggered automatically upon receiving a GitHub push webhook event.</li></ul><ul><li>[x] Verified webhook-based test execution using `ngrok` for local tunneling and GitHub webhook deliveries.</li></ul><ul><li>[x] Added documentation in `README.md` describing how to trigger automated tests through GitHub push events.</li></ul> |
