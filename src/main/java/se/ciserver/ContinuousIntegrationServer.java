@@ -30,8 +30,6 @@ import se.ciserver.github.InvalidPayloadException;
  */
 public class ContinuousIntegrationServer extends AbstractHandler
 {
-    /** Flag to skip test execution during integration tests. */
-    public static boolean isIntegrationTest = false;
 
     private final PushParser parser   = new PushParser();
     private final Compiler   compiler = new Compiler();

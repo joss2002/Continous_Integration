@@ -40,7 +40,6 @@ public class MainTest
     @Test
     public void ciServerHandlePushValidPayloadLocal() throws Exception
     {
-        ContinuousIntegrationServer.isIntegrationTest = true;
 
         Server server = new Server(0);
         server.setHandler(new ContinuousIntegrationServer(""));
@@ -76,7 +75,6 @@ public class MainTest
     @Test
     public void ciServerHandlePushInvalidPayloadLocal() throws Exception
     {
-        ContinuousIntegrationServer.isIntegrationTest = true;
 
         Server server = new Server(0);
         server.setHandler(new ContinuousIntegrationServer(""));
