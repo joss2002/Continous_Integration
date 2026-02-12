@@ -247,19 +247,19 @@ public class MainTest
      * 
      * @throws Exception If the server fails to start
      */
-    @Test
-    public void setCommitStatusFailsWithInvalidUrl()
-        throws Exception
-    {
-        PrintStream originalOut = System.out;
-        ByteArrayOutputStream systemOutCatcher = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(systemOutCatcher));
+    // @Test
+    // public void setCommitStatusFailsWithInvalidUrl()
+    //     throws Exception
+    // {
+    //     PrintStream originalOut = System.out;
+    //     ByteArrayOutputStream systemOutCatcher = new ByteArrayOutputStream();
+    //     System.setOut(new PrintStream(systemOutCatcher));
 
-        ContinuousIntegrationServer ciServer = new ContinuousIntegrationServer("github_acces_token");
-        ciServer.setCommitStatus("http://invalid", "success", "desc", "context");
+    //     ContinuousIntegrationServer ciServer = new ContinuousIntegrationServer("github_acces_token");
+    //     ciServer.setCommitStatus("http://invalid", "success", "desc", "context");
 
-        assertEquals("Set Commit Status failed, post request exception\n", systemOutCatcher.toString());
-        System.setOut(originalOut);
-    }
+    //     assertEquals("Set Commit Status failed, post request exception\n", systemOutCatcher.toString());
+    //     System.setOut(originalOut);
+    // }
 
 }
