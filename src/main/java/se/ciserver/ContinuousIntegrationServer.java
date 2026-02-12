@@ -85,6 +85,7 @@ public class ContinuousIntegrationServer extends AbstractHandler
                 response.getWriter().println("Push received: " + push.after);
 
                 String githubCommitUrl = "https://api.github.com/repos/"+push.repository.owner.name+"/"+push.repository.name+"/statuses/"+push.after;
+                System.out.println(githubCommitUrl);
                 setCommitStatus(githubCommitUrl, "pending", "Testing in progress...", "ci_server");
 
                 // RUN TESTS FOR THIS BRANCH
