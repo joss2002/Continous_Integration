@@ -1,19 +1,26 @@
 package se.ciserver;
 
-import java.io.IOException;
-import java.util.stream.Collectors;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 
-import se.ciserver.buildlist.Build;
-import se.ciserver.buildlist.BuildStore;
-import se.ciserver.github.InvalidPayloadException;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.api.ContentResponse;
+import org.eclipse.jetty.client.util.StringContentProvider;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.ServletException;
+
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+
+import se.ciserver.build.Compiler;
+import se.ciserver.build.CompilationResult;
 import se.ciserver.github.Push;
 import se.ciserver.github.PushParser;
 
@@ -22,8 +29,31 @@ import se.ciserver.github.PushParser;
  */
 public class ContinuousIntegrationServer extends AbstractHandler
 {
-    private final PushParser parser = new PushParser();
-    private final BuildStore store = new BuildStore("buildhist/build-history.json");
+    /** Flag to skip test execution during integration tests. */
+    public static boolean isIntegrationTest = false;
+
+    private final PushParser parser   = new PushParser();
+    private final Compiler   compiler = new Compiler();
+
+    private HttpClient httpClient;
+    private String accessToken;
+    private String latestTestOutput = "No tests run yet.";
+
+    /**
+     * Constructs the ContinuousIntegrationServer and starts a HttpClient
+     * @param accessToken A githubs access token with commit status permission for the repository
+     * 
+     * @throws Exception if httpClient fails to start
+     */
+    public ContinuousIntegrationServer(String accessToken)
+        throws Exception
+    {
+        this.accessToken = accessToken;
+        
+        SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
+        httpClient = new HttpClient(sslContextFactory);
+        httpClient.start();
+    }
 
     /**
      * Handles incoming HTTP requests for the CI server and presents necessary information.
@@ -44,27 +74,76 @@ public class ContinuousIntegrationServer extends AbstractHandler
     {
         if ("/webhook".equals(target) && "POST".equalsIgnoreCase(request.getMethod()))
         {
+            // Read the full JSON payload from the request body
             String json = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
 
             try
             {
+                // Parse the GitHub push event payload into a Push object
                 Push push = parser.parse(json);
                 // TODO: 1. To add respective build results
                 // 2. Wrap into build and persist
                 // 3. Response with info and URL
                 // To be added after compilation branch
 
+                // Log the push event details to the server console
                 System.out.println("\nReceived push on branch : " + push.ref +
                                    "\nAfter SHA               : " + push.after +
                                    "\nRepository URL          : " + push.repository.clone_url +
                                    "\nPusher name             : " + push.pusher.name +
                                    "\n\nHead commit message     : " + push.head_commit.message);
 
+                // P1: Clone the pushed branch and run mvn clean compile
+                System.out.println("\nStarting compilation...");
+                CompilationResult result = compiler.compile(
+                    push.repository.clone_url,
+                    push.ref,
+                    push.after);
+
+                // Log the compilation outcome to the server console
+                if (result.success)
+                {
+                    System.out.println("\nCompilation SUCCEEDED");
+                }
+                else
+                {
+                    System.out.println("\nCompilation FAILED");
+                }
+
+                // Respond with 200 regardless of build outcome;
+                // the webhook delivery itself was successful
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println("Push received: " + push.after);
+
+                String githubCommitUrl = "https://api.github.com/repos/"+push.repository.owner.name+"/"+push.repository.name+"/statuses/"+push.after;
+                setCommitStatus(githubCommitUrl, "pending", "Testing in progress...", "ci_server");
+
+                // RUN TESTS FOR THIS BRANCH
+                if(!isIntegrationTest) {
+                    String testResult;
+                    try {
+                        testResult = TestRunner.runTests(push.ref);
+                        response.getWriter().println(testResult);
+                        if (TestRunner.testSuccess)
+                            setCommitStatus(githubCommitUrl, "success", "All tests succeeded", "ci_server");
+                        else
+                            setCommitStatus(githubCommitUrl, "failure", "Test failures", "ci_server");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                        setCommitStatus(githubCommitUrl, "failure", "Error running tests: " + e.getMessage(), "ci_server");
+                        testResult = "Error running tests: " + e.getMessage();
+                    }
+                    latestTestOutput = "<pre>" + testResult + "</pre>";
+                    response.getWriter().println("Push received: " + push.after);
+                    response.getWriter().println(latestTestOutput);
+                    response.setStatus(HttpServletResponse.SC_OK);
+                }
+                
             }
             catch (InvalidPayloadException e)
             {
+                // Malformed or missing JSON fields
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.getWriter().println("Invalid payload: " + e.getMessage());
             }
@@ -125,23 +204,64 @@ public class ContinuousIntegrationServer extends AbstractHandler
             response.setStatus(HttpServletResponse.SC_OK);
             baseRequest.setHandled(true);
 
-            System.out.println(target);
-
-            response.getWriter().println("CI job done (placeholder)");
+            if (latestTestOutput != null) {
+                response.getWriter().println(latestTestOutput);
+            } else {
+                response.getWriter().println("CI job done (placeholder)");
+            }
         }
+    }
+
+    /**
+     * Send a POST request setting the status of a github commit
+     * @param url           - The url of the commit
+     * @param status        - The status to set for the commit, "success", "failure" or "pending"
+     * @param description   - Description of the status
+     * @param context       - The system setting the status
+     */
+    public void setCommitStatus(String url,
+                                String status,
+                                String description,
+                                String context)
+    {
+        // only runs if an accessToken was provided
+        if (accessToken.equals("")) return;
+        
+        try {
+            org.eclipse.jetty.client.api.Request request = httpClient.POST(url)
+                .header("Accept", "application/vnd.github+json")
+                .header("Authorization", "Bearer "+accessToken)
+                .header("X-GitHub-Api-Version", "2022-11-28")
+                .content(new StringContentProvider("{\"state\":\""+status+"\",\"description\":\""+description+"\",\"context\":\""+context+"\"}"), "application/json");
+            
+            ContentResponse response = request.send();
+
+            if (response.getContentAsString().equals("{\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/commits/statuses#create-a-commit-status\",\"status\":\"404\"}")) {
+                System.out.println("Set Commit Status failed, possibly wrong repository url");
+            }
+        } catch (InterruptedException | ExecutionException | TimeoutException exception) {
+            // Post request failed
+            System.out.println("Set Commit Status failed, post request exception");
+        }
+        
     }
 
     /**
      * Starts the CI-server in command line
      *
-     * @param args - Command-line arguments
+     * @param args - Command-line arguments, 1: a github access token to the repository
      *
      * @throws Exception If the server fails to start or join the thread.
      */
     public static void main(String[] args) throws Exception
     {
+        String accessToken = "";
+        if (args.length>0) {
+            accessToken = args[0];
+        }
+
         Server server = new Server(8080);
-        server.setHandler(new ContinuousIntegrationServer());
+        server.setHandler(new ContinuousIntegrationServer(accessToken));
         server.start();
         server.join();
     }
