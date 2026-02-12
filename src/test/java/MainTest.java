@@ -4,14 +4,27 @@ import static org.junit.Assert.assertTrue;
 import org.junit.After;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.eclipse.jetty.client.api.ContentProvider;
+import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 
 import se.ciserver.TestUtils;
 import se.ciserver.ContinuousIntegrationServer;
@@ -38,7 +51,7 @@ public class MainTest
         ContinuousIntegrationServer.isIntegrationTest = true;
 
         Server server = new Server(0);
-        server.setHandler(new ContinuousIntegrationServer());
+        server.setHandler(new ContinuousIntegrationServer(""));
         server.start();
         int port = ((ServerConnector) server.getConnectors()[0]).getLocalPort();
 
@@ -74,7 +87,7 @@ public class MainTest
         ContinuousIntegrationServer.isIntegrationTest = true;
 
         Server server = new Server(0);
-        server.setHandler(new ContinuousIntegrationServer());
+        server.setHandler(new ContinuousIntegrationServer(""));
         server.start();
         int port = ((ServerConnector) server.getConnectors()[0]).getLocalPort();
 
@@ -166,6 +179,87 @@ public class MainTest
         assertTrue(calls.contains("git checkout mock-branch"));
         assertTrue(calls.contains("git pull"));
 
+    }
+
+    /**
+     * Tests that setCommitStatus sends the correct request content
+     * 
+     * @throws Exception If an input/output error occurs, if the server
+     *                   fails to start or if sending the HTTP request
+     *                   fails
+     */
+    @Test
+    public void testSetCommitStatusPostRequest() throws Exception
+    {
+
+        // Server to receive the POST request and check it
+        class TestServer extends AbstractHandler {
+            private boolean success = false;
+
+            public void handle(String target,
+                                Request baseRequest,
+                                HttpServletRequest request,
+                                HttpServletResponse response)
+                throws IOException
+            {
+
+                if ("/webhook".equals(target) && "POST".equalsIgnoreCase(request.getMethod()))
+                {
+                    String requestString = request.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
+                    
+                    if (requestString.equals("{\"state\":\"success\",\"description\":\"desc\",\"context\":\"context\"}"))
+                        success = true;
+                    baseRequest.setHandled(true);
+                }
+                else
+                {
+                    if (success) response.setStatus(HttpServletResponse.SC_OK);
+                    else response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                    baseRequest.setHandled(true);
+                }
+
+            }
+        }
+
+        ContinuousIntegrationServer ciServer = new ContinuousIntegrationServer("github_acces_token");
+
+        Server server = new Server(0);
+        server.setHandler(new TestServer());
+        server.start();
+        int port = ((ServerConnector) server.getConnectors()[0]).getLocalPort();
+
+        ciServer.setCommitStatus("http://localhost:"+port+"/webhook", "success", "desc", "context");
+
+        URL url = new URL("http://localhost:"+port+"/");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("POST");
+        conn.setRequestProperty("Content-Type", "application/json");
+        conn.setDoOutput(true);
+
+        assertEquals(200, conn.getResponseCode());
+
+        server.stop();
+        server.join();        
+    }
+
+    /**
+     * Tests that setCommitStatus outputs error message if url connection fails
+     * 
+     * @throws Exception If the server fails to start
+     */
+    @Test
+    public void setCommitStatusFailsWithInvalidUrl()
+        throws Exception
+    {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream systemOutCatcher = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(systemOutCatcher));
+
+        ContinuousIntegrationServer ciServer = new ContinuousIntegrationServer("github_acces_token");
+        ciServer.setCommitStatus("http://invalid", "success", "desc", "context");
+
+        assertEquals("Set Commit Status failed, post request exception\n", systemOutCatcher.toString());
+        System.setOut(originalOut);
     }
 
 }
