@@ -1,11 +1,14 @@
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.HttpURLConnection;
@@ -247,4 +250,72 @@ public class MainTest
 
     }
 
+    /**
+     * Tests that CompilationResult correctly stores a successful build.
+     */
+    @Test
+    public void compilationResultStoresSuccess()
+    {
+        CompilationResult result = new CompilationResult(true, true, "BUILD SUCCESS", "TEST SUCCESS");
+        assertTrue(result.success);
+        assertEquals("BUILD SUCCESS", result.output);
+    }
+
+    /**
+     * Tests that CompilationResult correctly stores a failed build.
+     */
+    @Test
+    public void compilationResultStoresFailure()
+    {
+        CompilationResult result = new CompilationResult(false, false, "BUILD FAILURE", "TEST FAILURE");
+        assertFalse(result.success);
+        assertEquals("BUILD FAILURE", result.output);
+    }
+
+    /**
+     * Tests that the Compiler handles a clone failure gracefully
+     * by returning a failed CompilationResult instead of throwing.
+     */
+    @Test
+    public void compilerHandlesCloneFailure()
+    {
+        // Override createProcessBuilder to simulate a failing git clone
+        Compiler failCompiler = new Compiler()
+        {
+            @Override
+            protected ProcessBuilder createProcessBuilder(String... command)
+            {
+                return new ProcessBuilder("false");
+            }
+        };
+
+        CompilationResult result = failCompiler.compile(
+            "https://invalid-url.example.com/repo.git", "main", "abc123");
+
+        assertFalse(result.success);
+        assertNotNull(result.output);
+    }
+
+    /**
+     * Tests that the Compiler returns a successful CompilationResult
+     * when all process steps (clone, checkout, compile) succeed.
+     */
+    @Test
+    public void compilerReturnsSuccessWhenAllStepsPass()
+    {
+        // Override createProcessBuilder to simulate all commands succeeding
+        Compiler successCompiler = new Compiler()
+        {
+            @Override
+            protected ProcessBuilder createProcessBuilder(String... command)
+            {
+                return new ProcessBuilder("true");
+            }
+        };
+
+        CompilationResult result = successCompiler.compile(
+            "https://example.com/repo.git", "main", "abc123");
+
+        assertTrue(result.success);
+    }
 }

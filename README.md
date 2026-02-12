@@ -296,7 +296,6 @@ Compilation is unit-tested in `src/test/java/MainTest.java` with the following t
 - `compilationResultStoresFailure()` — verifies that a failed `CompilationResult` stores `success=false` and the build output.
 - `compilerHandlesCloneFailure()` — subclasses `Compiler` to override `createProcessBuilder()` with a failing command, verifying that a clone failure returns `success=false` without throwing an exception.
 - `compilerReturnsSuccessWhenAllStepsPass()` — subclasses `Compiler` to override `createProcessBuilder()` with a succeeding command, verifying the full pipeline returns `success=true`.
-- `ciServerHandleCompilationOnPush()` — starts a local Jetty server, sends a valid push payload to `/webhook`, and verifies the response is `200` and contains the compilation result with the commit SHA.
 - `compilerReturnesFailedCompilationForBadInputs` - verifies failed compilation results are returned for bad parameters.
 
 To run the tests, see [Perform unit tests](#perform-unit-tests).
