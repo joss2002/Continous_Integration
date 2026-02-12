@@ -333,7 +333,25 @@ The notification implementation is tested by running a test server and sending t
 ### Unit testing of test execution logic
 To avoid using real Git and Maven commands during unit testing, the `TestRunner` class uses a command hook mechanism that intercepts command execution. When this hook mechanism is set, command are captured rather than executed and the expected behaviour could be asserted within the unit test. 
 
+## Build History
 
+When the CI server receives a GitHub push webhook on `/webhook`, it compiles the pushed commit and records a build entry in a persistent build history. The history is stored as JSON on disk and loaded again when the server restarts, so past builds are preserved across reboots. The build history is exposed via HTTP so it can be browsed in a browser.
+
+### Build list URL
+
+The list of all builds is available at:
+
+```text
+http://<server-host>:8080/builds
+````
+
+### Individual Build URL
+
+Each build has a unique URL of the form:
+
+```text
+http://<server-host>:8080/builds/<build-id>
+````
 
 ## Statements of contributions
 
@@ -344,3 +362,4 @@ To avoid using real Git and Maven commands during unit testing, the `TestRunner`
 | Albin "zzimbaa" Blomqvist | <ul><li>[x] Implemented automated test execution triggered by GitHub push webhooks.</li></ul><ul><li>[x] Added `TestRunner.java` in `src/main/java/se/ciserver/` to handle CI test execution.<ul><li>[x] Dynamically checks out the pushed branch using git checkout and updates it with git pull.</li><li>[x] Executes Maven test suite using `mvn test`.</li><li>[x] Captures test output via `ProcessBuilder` and write logs to both `terminal` and `HTTP response` indicating test success or failure.</li><li>[x] Determines build success/failure based on process exit code.</li><li>[x] Added unit test for `runTests` method to verify correct correct branch checkout and pull commands using command hook.</li></ul></li></ul><ul><li>[x] Integrated the test execution logic into `ContinuousIntegrationServer.java` so that tests are triggered automatically upon receiving a GitHub push webhook event.</li></ul><ul><li>[x] Verified webhook-based test execution using `ngrok` for local tunneling and GitHub webhook deliveries.</li></ul><ul><li>[x] Added documentation in `README.md` describing how to trigger automated tests via GitHub push events.</li></ul> |
 | Erik Olsson "erik-ol" | <ul><li>[x] Added **GitHub** commit status setter component.<ul><li>[x] Added `ContinuousIntegrationServer()` `startHttpClient()` and `setCommitStatus()` to `ContinuousIntegrationServer.java` <li>[x] Extended `ContinuousIntegrationServer.java` `handler()` to set commit status of recieved pushes. <li>[x] Added unit tests in `src/test/java/MainTest.java` for `setCommitStatus()` sending post request functionality and failing due to invalid url. <li>[x] Implemented github access token handling <li>[x] Added additional dependencies in `pom.xml` for `jetty-client` <li>[x] Added documentation for commit status implementation and testing in `README.md`. </li></ul></li></ul> |
 | Albin "zzimbaa" Blomqvist | <ul><li>[x] Implemented automated test execution triggered by GitHub push webhooks.</li></ul><ul><li>[x] Added `TestRunner.java` in `src/main/java/se/ciserver/` to handle CI test execution.<ul><li>[x] Dynamically checks out the pushed branch using git checkout and updates it with git pull.</li><li>[x] Executes Maven test suite using `mvn test`.</li><li>[x] Captures test output via `ProcessBuilder` and write logs to both `terminal` and `HTTP response` indicating test success or failure.</li><li>[x] Determines build success/failure based on process exit code.</li><li>[x] Added unit test for `runTests` method to verify correct correct branch checkout and pull commands using command hook.</li></ul></li></ul><ul><li>[x] Integrated the test execution logic into `ContinuousIntegrationServer.java` so that tests are triggered automatically upon receiving a GitHub push webhook event.</li></ul><ul><li>[x] Verified webhook-based test execution using `ngrok` for local tunneling and GitHub webhook deliveries.</li></ul><ul><li>[x] Added documentation in `README.md` describing how to trigger automated tests through GitHub push events.</li></ul> |
+| Pun Chun "MrNoodlez-1227" Chow | <ul><li>[x] Implemented persistent build history with unique URLs. <ul><li>[x] Added the `Build` model in `src/main/java/se/ciserver/buildlist/Build.java` to represent individual CI builds (commit id, branch, timestamp, status, and logs).</li><li>[x] Implemented `BuildStore` in `src/main/java/se/ciserver/buildlist/BuildStore.java` to persist build history as JSON on disk, including loading on startup, adding new builds, and looking up builds by id.</li><li> [x] Extended `ContinuousIntegrationServer` to wire in `BuildStore`, and to expose the `/builds` endpoint for listing all builds and the `/builds/<id>` endpoint for viewing a single build’s information and log output.</li><li>[x] Added JUnit tests `BuildTest` and `BuildStoreTest` under `src/test/java/se/ciserver` to verify correct construction of Build objects and that BuildStore correctly saves and reloads history from file across server restarts.</li><li>[x] Updated this README with documentation for the build list URL and unique build URLs so graders can browse the history directly. 
