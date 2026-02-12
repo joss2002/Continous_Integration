@@ -1,6 +1,15 @@
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+
+import org.junit.Test;
+
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.HttpURLConnection;
@@ -32,6 +41,8 @@ import se.ciserver.buildlist.BuildStore;
 import se.ciserver.github.InvalidPayloadException;
 import se.ciserver.github.Push;
 import se.ciserver.github.PushParser;
+import se.ciserver.build.CompilationResult;
+import se.ciserver.build.Compiler;
 
 /**
  * Test class
@@ -48,7 +59,6 @@ public class MainTest
     @Test
     public void ciServerHandlePushValidPayloadLocal() throws Exception
     {
-        ContinuousIntegrationServer.isIntegrationTest = true;
 
         Server server = new Server(0);
         server.setHandler(new ContinuousIntegrationServer(""));
@@ -84,7 +94,6 @@ public class MainTest
     @Test
     public void ciServerHandlePushInvalidPayloadLocal() throws Exception
     {
-        ContinuousIntegrationServer.isIntegrationTest = true;
 
         Server server = new Server(0);
         server.setHandler(new ContinuousIntegrationServer(""));
@@ -154,31 +163,6 @@ public class MainTest
     public void simpleTest() {
         int sum = 1+1;
         assertTrue(sum==2);
-    }
-
-    @After
-    public void cleanup() {
-        // Reset hook after each test
-        TestRunner.commandHook = null;
-    }
-
-    @Test
-    public void testCommandsExecuted() throws Exception {
-        List<String> calls = new ArrayList<>();
-
-        // Hook that captures executed commands instead of running them when running runTest
-        // [git, checkout, mockbranch] => git checkout mock-branch´
-        // When function is called with cmd, convert the array of strings into a single String.
-        TestRunner.commandHook = cmd -> calls.add(String.join(" ", cmd));
-
-        // Run the method with a "mock" branch
-        TestRunner.runTests("mock-branch");
-
-
-        // Verify the correct git commands were called
-        assertTrue(calls.contains("git checkout mock-branch"));
-        assertTrue(calls.contains("git pull"));
-
     }
 
     /**
@@ -356,4 +340,89 @@ public class MainTest
         assertNull("unknown id should return null", missing);
     }
 
+    /**
+     * Tests that compiler returns failed compilation result for bad url, branch and SHA
+     */
+    @Test
+    public void compilerReturnesFailedCompilationForBadInputs()
+    {
+        Compiler   compiler = new Compiler();
+        CompilationResult result = compiler.compile(
+                    "bad_url",
+                    "bad_branch",
+                    "bad_sha");
+        
+        assertFalse(result.success);
+        assertFalse(result.testSuccess);
+
+    }
+
+    /**
+     * Tests that CompilationResult correctly stores a successful build.
+     */
+    @Test
+    public void compilationResultStoresSuccess()
+    {
+        CompilationResult result = new CompilationResult(true, true, "BUILD SUCCESS", "TEST SUCCESS");
+        assertTrue(result.success);
+        assertEquals("BUILD SUCCESS", result.output);
+    }
+
+    /**
+     * Tests that CompilationResult correctly stores a failed build.
+     */
+    @Test
+    public void compilationResultStoresFailure()
+    {
+        CompilationResult result = new CompilationResult(false, false, "BUILD FAILURE", "TEST FAILURE");
+        assertFalse(result.success);
+        assertEquals("BUILD FAILURE", result.output);
+    }
+
+    /**
+     * Tests that the Compiler handles a clone failure gracefully
+     * by returning a failed CompilationResult instead of throwing.
+     */
+    @Test
+    public void compilerHandlesCloneFailure()
+    {
+        // Override createProcessBuilder to simulate a failing git clone
+        Compiler failCompiler = new Compiler()
+        {
+            @Override
+            protected ProcessBuilder createProcessBuilder(String... command)
+            {
+                return new ProcessBuilder("false");
+            }
+        };
+
+        CompilationResult result = failCompiler.compile(
+            "https://invalid-url.example.com/repo.git", "main", "abc123");
+
+        assertFalse(result.success);
+        assertNotNull(result.output);
+    }
+
+    /**
+     * Tests that the Compiler returns a successful CompilationResult
+     * when all process steps (clone, checkout, compile) succeed.
+     */
+    @Test
+    public void compilerReturnsSuccessWhenAllStepsPass()
+    {
+        // Override createProcessBuilder to simulate all commands succeeding
+        Compiler successCompiler = new Compiler()
+        {
+            @Override
+            protected ProcessBuilder createProcessBuilder(String... command)
+            {
+                return new ProcessBuilder("true");
+            }
+        };
+
+        CompilationResult result = successCompiler.compile(
+            "https://example.com/repo.git", "main", "abc123");
+
+        assertTrue(result.success);
+    }
 }

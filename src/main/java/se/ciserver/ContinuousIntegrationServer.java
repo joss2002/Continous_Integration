@@ -30,8 +30,6 @@ import se.ciserver.github.PushParser;
  */
 public class ContinuousIntegrationServer extends AbstractHandler
 {
-    /** Flag to skip test execution during integration tests. */
-    public static boolean isIntegrationTest = false;
 
     private final PushParser parser   = new PushParser();
     private final Compiler   compiler = new Compiler();
@@ -91,6 +89,10 @@ public class ContinuousIntegrationServer extends AbstractHandler
                                    "\nPusher name             : " + push.pusher.name +
                                    "\n\nHead commit message     : " + push.head_commit.message);
 
+                // Set commit status to pending
+                String githubCommitUrl = "https://api.github.com/repos/"+push.repository.owner.name+"/"+push.repository.name+"/statuses/"+push.after;
+                setCommitStatus(githubCommitUrl, "pending", "Testing in progress...", "ci_server");
+                
                 // P1: Clone the pushed branch and run mvn clean compile
                 System.out.println("\nStarting compilation...");
                 CompilationResult result = compiler.compile(
@@ -103,45 +105,29 @@ public class ContinuousIntegrationServer extends AbstractHandler
                 if (result.success)
                 {
                     System.out.println("\nCompilation SUCCEEDED");
+                    if (result.testSuccess) {
+                        System.out.println("Tests SUCCEEDED");
+                        setCommitStatus(githubCommitUrl, "success", "All tests succeeded", "ci_server");
+                    }
+                    else {
+                        System.out.println("Tests FAILED");
+                        setCommitStatus(githubCommitUrl, "failure", "Test failures", "ci_server");
+                    }   
                 }
                 else
                 {
                     System.out.println("\nCompilation FAILED");
+                    setCommitStatus(githubCommitUrl, "failure", "Compilation failed", "ci_server");
                 }
-
+                
                 // Construct the current build into the history list
                 Build build = Build.newBuild(push.after, push.ref, result.success, result.output);
                 store.add(build);
+                
+                response.getWriter().println(result.output + "\n\n" + result.testOutput);
+                latestTestOutput = "<pre>" + result.output + "\n\n" + result.testOutput + "</pre>";
 
-                // Respond with 200 regardless of build outcome;
-                // the webhook delivery itself was successful
                 response.setStatus(HttpServletResponse.SC_OK);
-                response.getWriter().println("Push received: " + push.after);
-
-                String githubCommitUrl = "https://api.github.com/repos/"+push.repository.owner.name+"/"+push.repository.name+"/statuses/"+push.after;
-                setCommitStatus(githubCommitUrl, "pending", "Testing in progress...", "ci_server");
-
-                // RUN TESTS FOR THIS BRANCH
-                if(!isIntegrationTest) {
-                    String testResult;
-                    try {
-                        testResult = TestRunner.runTests(push.ref);
-                        response.getWriter().println(testResult);
-                        if (TestRunner.testSuccess)
-                            setCommitStatus(githubCommitUrl, "success", "All tests succeeded", "ci_server");
-                        else
-                            setCommitStatus(githubCommitUrl, "failure", "Test failures", "ci_server");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                        setCommitStatus(githubCommitUrl, "failure", "Error running tests: " + e.getMessage(), "ci_server");
-                        testResult = "Error running tests: " + e.getMessage();
-                    }
-                    latestTestOutput = "<pre>" + testResult + "</pre>";
-                    response.getWriter().println("Push received: " + push.after);
-                    response.getWriter().println(latestTestOutput);
-                    response.setStatus(HttpServletResponse.SC_OK);
-                }
                 
             }
             catch (InvalidPayloadException e)
