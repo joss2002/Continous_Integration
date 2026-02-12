@@ -1,6 +1,6 @@
 ## Host CI-server locally
 
-Assessment test
+Assessment test 1
 
 ### Prerequisites
 - Java 8
