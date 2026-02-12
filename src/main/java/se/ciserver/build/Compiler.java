@@ -41,8 +41,8 @@ public class Compiler
 
             if (cloneExit != 0)
             {
-                return new CompilationResult(false,
-                    "Git clone failed with exit code " + cloneExit);
+                return new CompilationResult(false, false,
+                    "Git clone failed with exit code " + cloneExit, "");
             }
 
             // Step 2: Checkout the exact commit SHA that triggered the webhook
@@ -51,8 +51,8 @@ public class Compiler
 
             if (checkoutExit != 0)
             {
-                return new CompilationResult(false,
-                    "Git checkout failed with exit code " + checkoutExit);
+                return new CompilationResult(false, false,
+                    "Git checkout failed with exit code " + checkoutExit, "");
             }
 
             // Step 3: Run Maven compilation and return the result
@@ -60,8 +60,8 @@ public class Compiler
         }
         catch (IOException | InterruptedException e)
         {
-            return new CompilationResult(false,
-                "Compilation error: " + e.getMessage());
+            return new CompilationResult(false, false,
+                "Compilation error: " + e.getMessage(), "");
         }
         finally
         {
@@ -139,11 +139,25 @@ public class Compiler
 
         int exitCode = process.waitFor();
 
-        // Print Maven output to server console so grader can observe the build
-        System.out.println(output);
+        // Run tests
+        ProcessBuilder tb = createProcessBuilder("mvn", "test");
+        tb.directory(workDir.toFile());
+
+        Process testProcess = tb.start();
+
+        // Capture all test output into a single string
+        String testOutput;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(testProcess.getInputStream())))
+        {
+            testOutput = reader.lines()
+                .collect(Collectors.joining(System.lineSeparator()));
+        }
+
+        int testExitCode = testProcess.waitFor();
 
         // Exit code 0 means compilation succeeded
-        return new CompilationResult(exitCode == 0, output);
+        return new CompilationResult(exitCode == 0, testExitCode == 0, output, testOutput);
     }
 
     /**
