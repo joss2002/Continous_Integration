@@ -1,6 +1,8 @@
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -24,6 +26,8 @@ import se.ciserver.ContinuousIntegrationServer;
 import se.ciserver.github.PushParser;
 import se.ciserver.github.Push;
 import se.ciserver.github.InvalidPayloadException;
+import se.ciserver.build.CompilationResult;
+import se.ciserver.build.Compiler;
 
 /**
  * Test class
@@ -225,6 +229,23 @@ public class MainTest
 
         assertEquals("Set Commit Status failed, post request exception\n", systemOutCatcher.toString());
         System.setOut(originalOut);
+    }
+
+    /**
+     * Tests that compiler returns failed compilation result for bad url, branch and SHA
+     */
+    @Test
+    public void compilerFails()
+    {
+        Compiler   compiler = new Compiler();
+        CompilationResult result = compiler.compile(
+                    "bad_url",
+                    "bad_branch",
+                    "bad_sha");
+        
+        assertFalse(result.success);
+        assertFalse(result.testSuccess);
+
     }
 
 }
