@@ -16,19 +16,19 @@ public class Build {
     public String log;
 
     /**
-     * Default Consturctor of Build
+     * Default constructor for Build, required for JSON deserialization.
      */
     public Build(){
     }
 
     /**
-     * Constructs a Build objects
-     * 
-     * @param id        Identifier for the build
-     * @param comitId   Identifier for the git commit SHA that triggers this build
-     * @param branch    Branch that the commit is from
-     * @param timestamp When this build is occurred
-     * @param status    Whether this build was successful or not
+     * Constructs a Build object with all fields.
+     *
+     * @param id        Unique identifier for the build
+     * @param commitId  The git commit SHA that triggered this build
+     * @param branch    The branch that the commit is from
+     * @param timestamp When this build occurred (ISO 8601)
+     * @param status    Whether this build was successful
      * @param log       Output produced during the build and tests
      */
     public Build(String id, String commitId, String branch,
@@ -41,6 +41,16 @@ public class Build {
         this.log = log;
     }
 
+    /**
+     * Factory method that creates a new Build with a generated UUID and current timestamp.
+     *
+     * @param commitId The git commit SHA
+     * @param branch   The branch name
+     * @param status   Whether the build succeeded
+     * @param log      The build output log
+     *
+     * @return A new Build instance
+     */
     public static Build newBuild(String commitId, String branch,
                                  Boolean status, String log) {
         return new Build(

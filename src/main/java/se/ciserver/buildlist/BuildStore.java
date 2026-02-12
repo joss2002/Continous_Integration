@@ -32,6 +32,8 @@ public class BuildStore {
 
     /**
      * Returns a read-only copy of the build history.
+     *
+     * @return An unmodifiable list of all builds
      */
     public synchronized List<Build> getAll() {
         return Collections.unmodifiableList(new ArrayList<>(builds));
@@ -40,7 +42,9 @@ public class BuildStore {
     /**
      * Returns the build with the given id, or null if not found.
      *
-     * @param id the build identifier
+     * @param id The build identifier
+     *
+     * @return The matching Build, or null if no build has the given id
      */
     public synchronized Build getById(String id) {
         return builds.stream()
